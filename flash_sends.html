@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+     <meta alt="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Google Sheet API Sandbox</title>
+   <!-- CSS only -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.9.3/css/bulma.min.css" rel="stylesheet" >
+    <style type="text/css">
+      body{
+        background: #eee;
+        height: 100vh;
+        padding: 2em;
+      }
+      #app{
+        border-radius: 20px;
+        background: #FFF;
+        padding: 2em;
+      }
+    pre{
+      white-space: pre-wrap;
+      overflow:auto;
+      max-width:100%;
+      background: #ddd;
+      padding: 1.8em;
+      border-radius: 1em;
+    }
+
+    #app{
+      padding: 40px;
+      font-size: 18px;
+    }
+    input[type=text]{
+      width: 100%;
+    }
+    .select{
+      display: block;
+    }
+    select{
+      width: 100%;
+    }
+    .button{
+      font-size:  20px;
+      font-weight: bold;
+    }
+    </style>
+  </head>
+<body>
+<div id="app">
+  <div class="columns">
+    <div class="column">
+      <h1 class="title">Step {{ stepCounter }}</h1>
+      <div class="field" v-if="findButton">
+        <label class="label">Send Date</label>
+        <input type="text" v-model="send_date" placeholder="Send date ex: 20220207"  class="input" >
+      </div>
+      <div class="field" v-if="findButton">
+        <label class="label">Program</label>
+        <div class="control">
+          <div class="select">
+            <select v-model="program" required>
+              <option value="">Select Program</option>
+              <option value="Flash">Flash</option>
+              <option value="Merch">Merch</option>
+              <option value="Blowouts">Blowouts</option>
+              <option value="Home_PM">Home_PM</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="columns">
+    <div class="column" v-if="JSONButton">
+      <h2 v-if="crows.values.length > 0"><b>{{cRowLength}}</b> content rows found for send date <b>{{ send_date }}</b>.<br/></h2>
+      <h2 v-if="srows.values.length > 0"><b>{{sRowLength}}</b> sendable rows found for send date <b>{{ send_date }}</b>.<br/><br/></h2>
+      <h2 v-else>No data found.</h2>
+    </div>
+    <div class="column" v-if="SubmitButton">
+      <h2 v-if="cRowLength > 0" ><b>{{ cRowLength }}</b> content rows and <b>{{ sRowLength }}</b> sendable rows converted to JSON for the <b>{{ send_date }}{{ program }}</b> send.<br/><br/></h2>
+      <h2 v-else>Unable to convert to JSON.</h2>
+    </div>
+  </div>
+  <div class="columns">
+    <div class="column" >
+      <div class="field" v-if="findButton">
+        <input class="button is-primary margin-bottom" value="Find Send Date" @click="getData" />
+        <br/>
+      </div>
+      <div class="field" v-if="JSONButton">
+        <input class="button is-primary margin-bottom" value="Generate JSON" @click="generateCode" />
+        </span>
+      </div>
+      <div class="field" v-if="SubmitButton">
+        <form name="myform" action="xxx" method="post" role="form">
+          <input type="hidden" v-model="rows" name="userdata">
+          <input type="hidden" v-model="user" name="user">
+          <input type="hidden" v-model="userkey" name="userkey">
+          <input type="hidden" v-model="program" name="program">
+          <input type="hidden" v-model="send_date" name="send_date">
+          <input type="hidden" v-model="sendable_rows" name="sendabledata">
+          <input class="button is-primary margin-bottom" type="submit" value="Upload Rows"/>
+        </form>
+      </div>
+    </div>
+
+    <div class="column" >
+      <div class="field" style="float:right;" >
+        <input class="button is-secondary margin-bottom" value="Reset All" @click="resetAll" /><br/>
+      </div>
+    </div>
+  </div>
+
+</div>
+<!-- end app -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" integrity="sha512-894YE6QWD5I59HgZOGReFYm4dnWc1Qt5NtvYSaNcOP+u1T9qYdvdihz0PPSiiqn/+/3e7Jo4EaG7TubfWGUrMQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.25.0/axios.min.js" integrity="sha512-/Q6t3CASm04EliI1QyIDAA/nDo9R8FQ/BULoUFyN4n/BDdyIxeH7u++Z+eobdmr11gG5D/6nPFyDlnisDwhpYA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.6.11/vue.min.js"></script>
+<script type="text/javascript">
+
+let gs_key = "xxxxx"
+
+new Vue({
+  el: '#app',
+  data () {
+    return {
+      crows: [],
+      srows: [],
+      rows: [],
+      send_date: '',
+      program: '',
+      showSubmit: false,
+      user: 'xxxx',
+      userkey: 'xxxxx',
+      sendable_rows: [],
+      findButton: true,
+      JSONButton: false,
+      SubmitButton: false,
+      stepCounter : 1
+
+    }
+  },
+  mounted () {
+    //this.getData();
+
+  },
+  methods:{
+    getData(){
+        
+        axios.get('https://sheets.googleapis.com/v4/spreadsheets/' + this.getSheet + '/values/' + this.send_date + '%20' + this.getProgramContent + '!A1:AZ100?alt=json&key=' + gs_key).then(
+        response => (this.crows = response.data)).catch( function (error){
+          if (error.response){
+           console.log("Error", error.message)
+          }
+          else if (error.request){
+            console.log(error.request);
+          }
+          else{
+            console.log("Error", error.message)
+          }
+        })
+
+        axios.get('https://sheets.googleapis.com/v4/spreadsheets/' + this.getSheet + '/values/' + this.send_date + '%20' + this.getProgramSendable + '!A1:AZ100?alt=json&key=' + gs_key).then(
+        response => (this.srows = response.data)).catch( function (error){
+          if (error.response){
+           console.log("Error", error.message)
+          }
+          else if (error.request){
+            console.log(error.request);
+          }
+          else{
+            console.log("Error", error.message)
+          }
+        })
+
+        this.JSONButton = true
+        this.findButton = false
+        this.stepCounter = 2
+        
+
+    },
+    getJSON(rows){
+
+      var data = rows
+      keys = data.values[0],
+        result = data.values.slice(1).map(function (a) {
+          var temp = {};
+          keys.forEach(function (k, i) {
+              temp[k] = a[i];
+          })
+          return temp;
+      });
+
+      return JSON.stringify(result)
+       
+        
+    },
+    generateCode(){
+        this.checkResults();
+        this.rows = encodeURIComponent(this.getJSON(this.crows))
+        this.sendable_rows = this.getJSON(this.srows)
+        this.JSONButton = false
+        this.SubmitButton = true
+    },
+    resetAll(){
+        this.stepCounter = 1
+        this.rows = []
+        this.crows = []
+        this.srows = []
+        this.sendable_rows = []
+        this.program = ''
+        this.send_date = ''
+        this.SubmitButton = false
+        this.findButton = true
+        this.JSONButton = false
+    },
+    checkResults(){
+      if (this.crows.values.length > 0){
+        this.stepCounter = 3
+      }
+      else{
+        this.stepCounter = 2
+      }
+    }
+
+
+  },
+  computed: {
+    getProgramContent(){
+      var prog = this.program.toUpperCase();
+      return this.sendTime + '_RACK_' + prog + '_CONTENT'
+      
+    },
+    getProgramSendable(){
+      var prog = this.program.toUpperCase();
+      return this.sendTime + '_RACK_' + prog + '_TEST_SENDABLE'
+
+    },
+    getSheet(){
+       if (this.program == "Flash"){
+        return 'xxx'
+       }
+       if (this.program == "Merch"){
+        return 'xxx'
+       }
+       if (this.program == "Blowouts"){
+        return 'xxx'
+       }
+       if (this.program == "Home_PM"){
+        return 'xxx'
+       }
+
+    },
+    sendTime(){
+      if (this.program == "Flash" ){
+        return '8AM'
+      }
+      if (this.program == "Merch" ){
+        return '5PM'
+      }
+      if (this.program == "Blowouts" ){
+        return '4PM'
+      }
+      if (this.program == "Home_PM" ){
+        return '1PM'
+      }
+    },
+    cRowLength(){
+      return this.crows.values.length - 1
+    },
+    sRowLength(){
+      return this.srows.values.length - 1
+    }
+
+  }
+})
+
+</script>
+</body>
+</html>
